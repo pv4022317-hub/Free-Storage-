@@ -1,0 +1,6 @@
+{
+  "name": "PhotoVerse AI Cloud Pro",
+  "description": "An ultra-fast, offline-first AI photo and video storage platform with smart search, auto-categorization, private vault, and intelligent photo editing.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
