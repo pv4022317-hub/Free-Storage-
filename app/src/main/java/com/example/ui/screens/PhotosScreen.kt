@@ -694,6 +694,8 @@ fun PhotoDetailsDialog(
     onDismiss: () -> Unit,
     onNavigateToStudio: () -> Unit
 ) {
+    var showDeleteConfirm by remember { mutableStateOf(false) }
+
     Dialog(
         onDismissRequest = onDismiss,
         properties = DialogProperties(usePlatformDefaultWidth = false)
@@ -799,11 +801,54 @@ fun PhotoDetailsDialog(
                         Icon(Icons.Default.AutoFixHigh, contentDescription = "AI Editing Studio", tint = MaterialTheme.colorScheme.primary)
                     }
                     IconButton(onClick = {
-                        viewModel.deletePhoto(photo)
-                        onDismiss()
+                        showDeleteConfirm = true
                     }) {
                         Icon(Icons.Default.Delete, contentDescription = "Delete", tint = MaterialTheme.colorScheme.error)
                     }
+                }
+
+                if (showDeleteConfirm) {
+                    AlertDialog(
+                        onDismissRequest = { showDeleteConfirm = false },
+                        icon = {
+                            Icon(
+                                imageVector = Icons.Default.Warning,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.error
+                            )
+                        },
+                        title = {
+                            Text(
+                                text = "Permanently delete image?",
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.error
+                            )
+                        },
+                        text = {
+                            Text(
+                                text = "Are you sure you want to permanently delete \"${photo.title}\"? This action is irreversible, and the image data will be lost forever.",
+                                style = MaterialTheme.typography.bodyMedium
+                            )
+                        },
+                        confirmButton = {
+                            Button(
+                                onClick = {
+                                    viewModel.deletePhoto(photo)
+                                    showDeleteConfirm = false
+                                    onDismiss()
+                                },
+                                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
+                            ) {
+                                Text("Delete Forever")
+                            }
+                        },
+                        dismissButton = {
+                            TextButton(onClick = { showDeleteConfirm = false }) {
+                                Text("Cancel")
+                            }
+                        }
+                    )
                 }
 
                 Divider(modifier = Modifier.padding(vertical = 12.dp), color = MaterialTheme.colorScheme.outline.copy(alpha = 0.5f))

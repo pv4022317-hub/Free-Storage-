@@ -32,6 +32,7 @@ import androidx.compose.foundation.lazy.items
 import com.example.ui.components.GlassyCard
 import com.example.ui.components.GlassyButton
 import com.example.viewmodel.PhotoViewModel
+import androidx.compose.ui.window.Dialog
 
 @Composable
 fun AlbumsScreen(
@@ -947,6 +948,9 @@ fun VaultPrivateGallery(
     viewModel: PhotoViewModel,
     onLockVaultClick: () -> Unit
 ) {
+    var photoToDelete by remember { mutableStateOf<PhotoEntity?>(null) }
+    var selectedPreviewPhoto by remember { mutableStateOf<PhotoEntity?>(null) }
+
     Column {
         Row(
             modifier = Modifier.fillMaxWidth().padding(vertical = 12.dp),
@@ -973,9 +977,152 @@ fun VaultPrivateGallery(
         } else {
             AlbumPhotosGrid(
                 photos = vaultPhotos,
-                onUnlock = { photo -> viewModel.unlockFromVault(photo) }
+                onUnlock = { photo -> viewModel.unlockFromVault(photo) },
+                onDelete = { photo -> photoToDelete = photo },
+                onPhotoClick = { photo -> selectedPreviewPhoto = photo }
             )
         }
+    }
+
+    // Detail Preview Dialog for Vault Photos
+    if (selectedPreviewPhoto != null) {
+        val currentPhoto = selectedPreviewPhoto!!
+        Dialog(onDismissRequest = { selectedPreviewPhoto = null }) {
+            Card(
+                modifier = Modifier
+                    .fillMaxWidth(0.95f)
+                    .wrapContentHeight()
+                    .padding(16.dp)
+                    .border(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.3f), RoundedCornerShape(24.dp)),
+                shape = RoundedCornerShape(24.dp),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column {
+                            Text(
+                                text = currentPhoto.title,
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.Bold
+                            )
+                            if (currentPhoto.location.isNotBlank()) {
+                                Text(
+                                    text = currentPhoto.location,
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
+                                )
+                            }
+                        }
+                        IconButton(onClick = { selectedPreviewPhoto = null }) {
+                            Icon(Icons.Default.Close, contentDescription = "Close")
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(260.dp)
+                            .clip(RoundedCornerShape(16.dp))
+                            .background(Color.Black),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        AsyncImage(
+                            model = currentPhoto.uri,
+                            contentDescription = currentPhoto.title,
+                            modifier = Modifier.fillMaxSize(),
+                            contentScale = ContentScale.Fit
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.height(16.dp))
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceEvenly
+                    ) {
+                        Button(
+                            onClick = {
+                                viewModel.unlockFromVault(currentPhoto)
+                                selectedPreviewPhoto = null
+                            },
+                            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
+                        ) {
+                            Icon(Icons.Default.LockOpen, contentDescription = null, modifier = Modifier.size(16.dp))
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text("Unlock")
+                        }
+
+                        Button(
+                            onClick = {
+                                photoToDelete = currentPhoto
+                                selectedPreviewPhoto = null
+                            },
+                            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
+                        ) {
+                            Icon(Icons.Default.Delete, contentDescription = null, modifier = Modifier.size(16.dp))
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text("Delete")
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    // Confirmation Alert Dialog
+    if (photoToDelete != null) {
+        val deletingPhoto = photoToDelete!!
+        AlertDialog(
+            onDismissRequest = { photoToDelete = null },
+            icon = {
+                Icon(
+                    imageVector = Icons.Default.Warning,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.error
+                )
+            },
+            title = {
+                Text(
+                    text = "Permanently delete image?",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.error
+                )
+            },
+            text = {
+                Text(
+                    text = "Are you sure you want to permanently delete \"${deletingPhoto.title}\" from the local storage vault? This action is irreversible, and the image data will be lost forever.",
+                    style = MaterialTheme.typography.bodyMedium
+                )
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        viewModel.deletePhoto(deletingPhoto)
+                        photoToDelete = null
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
+                ) {
+                    Text("Delete Forever")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { photoToDelete = null }) {
+                    Text("Cancel")
+                }
+            }
+        )
     }
 }
 
@@ -985,7 +1132,9 @@ fun VaultPrivateGallery(
 @Composable
 fun AlbumPhotosGrid(
     photos: List<PhotoEntity>,
-    onUnlock: ((PhotoEntity) -> Unit)? = null
+    onUnlock: ((PhotoEntity) -> Unit)? = null,
+    onDelete: ((PhotoEntity) -> Unit)? = null,
+    onPhotoClick: ((PhotoEntity) -> Unit)? = null
 ) {
     Column(modifier = Modifier.padding(top = 8.dp)) {
         val rows = photos.chunked(3)
@@ -1000,6 +1149,12 @@ fun AlbumPhotosGrid(
                             .weight(1f)
                             .aspectRatio(1f)
                             .clip(RoundedCornerShape(12.dp))
+                            .background(Color.Gray.copy(alpha = 0.1f))
+                            .then(
+                                if (onPhotoClick != null) {
+                                    Modifier.clickable { onPhotoClick(photo) }
+                                } else Modifier
+                            )
                     ) {
                         AsyncImage(
                             model = photo.uri,
@@ -1019,6 +1174,20 @@ fun AlbumPhotosGrid(
                                     .padding(6.dp)
                             ) {
                                 Icon(Icons.Default.LockOpen, contentDescription = "Unlock", tint = Color.White, modifier = Modifier.size(14.dp))
+                            }
+                        }
+
+                        // Option overlay to delete vault photo permanently
+                        if (onDelete != null) {
+                            Box(
+                                modifier = Modifier
+                                    .align(Alignment.TopStart)
+                                    .padding(6.dp)
+                                    .background(Color.Black.copy(alpha = 0.5f), CircleShape)
+                                    .clickable { onDelete(photo) }
+                                    .padding(6.dp)
+                            ) {
+                                Icon(Icons.Default.Delete, contentDescription = "Delete", tint = Color(0xFFEF4444), modifier = Modifier.size(14.dp))
                             }
                         }
                     }

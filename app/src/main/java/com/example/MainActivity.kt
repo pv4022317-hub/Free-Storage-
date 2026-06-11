@@ -25,6 +25,7 @@ import androidx.compose.ui.unit.dp
 import com.example.ui.theme.MyApplicationTheme
 import com.example.ui.components.GradientBackground
 import com.example.ui.components.GlassyCard
+import com.example.ui.components.AdBanner
 import com.example.ui.screens.*
 import com.example.viewmodel.PhotoViewModel
 
@@ -36,16 +37,29 @@ class MainActivity : ComponentActivity() {
             MyApplicationTheme {
                 val viewModel: PhotoViewModel = androidx.lifecycle.viewmodel.compose.viewModel()
                 var currentTab by remember { mutableStateOf(0) }
+                val isPremium by viewModel.isPremium.collectAsState()
+                val isUserLoggedIn by viewModel.isUserLoggedIn.collectAsState()
 
                 GradientBackground {
+                    if (!isUserLoggedIn) {
+                        LoginScreen(
+                            viewModel = viewModel,
+                            onLoginSuccess = {}
+                        )
+                    } else {
                     Scaffold(
                         modifier = Modifier.fillMaxSize(),
                         containerColor = Color.Transparent,
                         bottomBar = {
-                            PhotoVerseBottomBar(
-                                selectedIndex = currentTab,
-                                onTabSelected = { currentTab = it }
-                            )
+                            Column(modifier = Modifier.fillMaxWidth()) {
+                                if (!isPremium) {
+                                    AdBanner()
+                                }
+                                PhotoVerseBottomBar(
+                                    selectedIndex = currentTab,
+                                    onTabSelected = { currentTab = it }
+                                )
+                            }
                         }
                     ) { innerPadding ->
                         Box(
@@ -82,6 +96,7 @@ class MainActivity : ComponentActivity() {
                         }
                     }
                 }
+            }
             }
         }
     }
